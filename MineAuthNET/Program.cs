@@ -9,8 +9,8 @@ namespace MineAuthNET
     {
         static void Main(string[] args)
         {
-
-            LauncherBuilder.CreateLauncherFolders(@"C:\Users\jojok\AppData\Roaming");
+      
+            LauncherBuilder.CreateLauncherFolders(@"C:\Users\jojok\AppData\Roaming",".launcher");
 
        
             //Console.WriteLine(JToken.Parse(json).ToString(Formatting.Indented));

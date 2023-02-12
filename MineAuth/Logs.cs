@@ -6,21 +6,42 @@ using System.Threading.Tasks;
 
 namespace MineAuth
 {
+    public enum MessageType
+    {
+        Success,
+        Error,
+        Warning,
+        Normal,
+    }
+
     public static class Logs
     {
-
-        private static Queue<string> logs = new Queue<string>();
-
-
-
-        public static void Add(string log_msg)
+ 
+        public static void Add(string message, MessageType type = MessageType.Normal)
         {
-            logs.Enqueue(log_msg);
-        }
+            switch (type)
+            {
+                case MessageType.Success:
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
+                    break;
+                case MessageType.Error:
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    break;
+                case MessageType.Warning:
+                    Console.ForegroundColor = ConsoleColor.DarkYellow;
+                    break;
+                default:
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    break;
+            }
 
-        public static string GetLog()
-        {
-            return logs.Dequeue();
+            Console.WriteLine(message);
+            Console.ForegroundColor = ConsoleColor.Gray;
         }
     }
+
+
+    
+
+
 }

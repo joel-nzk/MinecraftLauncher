@@ -28,40 +28,50 @@ namespace MineAuth.Http
             }
         }
 
-        public static async void DownloadFile(string url, string savePath, string fileName, long? exceptedSize = 0)
+        public static  async void DownloadFile(string url, string savePath, string fileName, long? exceptedSize = 0)
         {
-            string path = Path.Combine(savePath, fileName);
 
-            var response = await client.GetAsync(url);
-            using (var fs = new FileStream(path, FileMode.Create))
-            {
-                await response.Content.CopyToAsync(fs);
-
-                if (!CheckFileintegrity(path, exceptedSize))
-                {
-                    Logs.Add($"The file {fileName} doesn't match the excepted size");   
-                    File.Delete(path);
-                }
-                else
-                {
-                    Logs.Add($"{fileName} have been succefully downloaded");
-
-                }
-            }
            
+            string path = Path.Combine(savePath, fileName);
+            using var response = await client.GetAsync(url);
+                using (Stream streamToReadFrom =  await response.Content.ReadAsStreamAsync())
+                {
+                    using (Stream streamToWriteTo = File.Open(path, FileMode.Create))
+                    {
+                        await streamToReadFrom.CopyToAsync(streamToWriteTo);
+
+                        long filesize = new FileInfo(path).Length;
+
+
+                        if (!CheckFileintegrity(filesize, exceptedSize))
+                        {
+                            Logs.Add($"The file '{fileName}' ({filesize} bytes) doesn't match the excepted size ({exceptedSize} bytes), it may be corrupted", MessageType.Error);
+                        }
+                        else
+                        {
+                            Logs.Add($"'{fileName}' have been succefully downloaded to '{path}'", MessageType.Success);
+                        }
+
+
+                    }
+
+                   
+                }
+                
+        
+
+     
+
 
 
         }
 
-        private static bool CheckFileintegrity(string path, long? exceptedSize)
+        private static bool CheckFileintegrity(long filesize, long? exceptedSize)
         {
-            long file_length = new FileInfo(path).Length;
-
-            if(file_length != exceptedSize)
+            if(filesize != exceptedSize)
                 return false;
 
-
-            return true; ;
+            return true;
         }
 
         
