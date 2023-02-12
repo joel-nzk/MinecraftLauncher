@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33205.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MineAuthNET", "MineAuthNET.csproj", "{FCEBE417-AB6C-43B9-8648-F865B890A629}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MineAuth", "..\MineAuth\MineAuth.csproj", "{07A545A1-075F-4110-8A2C-5FBFEE255561}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FCEBE417-AB6C-43B9-8648-F865B890A629}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCEBE417-AB6C-43B9-8648-F865B890A629}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCEBE417-AB6C-43B9-8648-F865B890A629}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCEBE417-AB6C-43B9-8648-F865B890A629}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07A545A1-075F-4110-8A2C-5FBFEE255561}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07A545A1-075F-4110-8A2C-5FBFEE255561}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07A545A1-075F-4110-8A2C-5FBFEE255561}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07A545A1-075F-4110-8A2C-5FBFEE255561}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {42C8ACC7-AF63-41E1-8E4C-4EFA8B7DC558}
+	EndGlobalSection
+EndGlobal
