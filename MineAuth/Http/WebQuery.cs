@@ -31,32 +31,44 @@ namespace MineAuth.Http
         public static  async void DownloadFile(string url, string savePath, string fileName, long? exceptedSize = 0)
         {
 
-           
             string path = Path.Combine(savePath, fileName);
-            using var response = await client.GetAsync(url);
-                using (Stream streamToReadFrom =  await response.Content.ReadAsStreamAsync())
+
+            try
+            {
+                Thread.Sleep(100);
+                using (var response = await client.GetAsync(url))
                 {
-                    using (Stream streamToWriteTo = File.Open(path, FileMode.Create))
+                    using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
                     {
-                        await streamToReadFrom.CopyToAsync(streamToWriteTo);
-
-                        long filesize = new FileInfo(path).Length;
-
-
-                        if (!CheckFileintegrity(filesize, exceptedSize))
+                        using (Stream streamToWriteTo = File.Open(path, FileMode.Create))
                         {
-                            Logs.Add($"The file '{fileName}' ({filesize} bytes) doesn't match the excepted size ({exceptedSize} bytes), it may be corrupted", MessageType.Error);
-                        }
-                        else
-                        {
-                            Logs.Add($"'{fileName}' have been succefully downloaded to '{path}'", MessageType.Success);
+                            await streamToReadFrom.CopyToAsync(streamToWriteTo);
+
+                            long filesize = new FileInfo(path).Length;
+
+
+                            if (!CheckFileintegrity(filesize, exceptedSize))
+                            {
+                                Logs.Add($"The file '{fileName}' ({filesize} bytes) doesn't match the excepted size ({exceptedSize} bytes), it may be corrupted", MessageType.Error);
+                            }
+                            else
+                            {
+                                Logs.Add($"'{fileName}' have been succefully downloaded to '{path}'", MessageType.Success);
+                            }
+
+
                         }
 
 
                     }
-
-                   
                 }
+               
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(e);
+            }
+           
                 
         
 

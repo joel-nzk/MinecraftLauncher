@@ -12,6 +12,10 @@ namespace MineAuthNET
       
             LauncherBuilder.CreateLauncherFolders(@"C:\Users\jojok\AppData\Roaming",".launcher");
 
+
+            //GameClient client = new GameClient();
+            //client.Start();
+
        
             //Console.WriteLine(JToken.Parse(json).ToString(Formatting.Indented));
 
