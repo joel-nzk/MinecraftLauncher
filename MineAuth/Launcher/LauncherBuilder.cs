@@ -12,25 +12,20 @@ using System.Xml.Linq;
 
 namespace MineAuth.Launcher{
 
-    public enum Platform
-    {
-        windows,
-        linux,
-        osx
-    }
+ 
 
     public static class LauncherBuilder
     {
-        private static Platform platform = GetUserPlatform();
+
         public static string version_manifest = "";
 
-        public static string classPath = "";
-        public static string nativeLibrariesFolder = "";
-        public static string gameDir = "";
-        public static string assetsPath = "";
-        public static string gameVersion = "1.8.1";
-        public static string assetIndexes = "";
-        public static string configurationFilePath = "";
+        private static string classPath = "";
+        private static string nativeLibrariesFolder = "";
+        private static string gameDir = "";
+        private static string clientName = "";
+        private static string assetsPath = "";
+        private static string assetIndexes = "";
+        private static string configurationFilePath = "";
 
         public static string OsArchitecture
         {
@@ -42,13 +37,14 @@ namespace MineAuth.Launcher{
                     return "32";
             }
         }
-        
 
-        public static void CreateLauncherFolders(string path, string name)
+
+        public static void CreateLauncherFolders(string path, string name, string gameVersion, string _clientName)
         {
             //TODO: SAUVEGARDER CE FICHIER
             version_manifest = MinecraftManifest.GetVersionManifest(gameVersion).Replace("${arch}", OsArchitecture);
             gameDir = Path.Combine(path, name);
+            clientName = _clientName;
 
 
             if (Directory.Exists(gameDir))
@@ -61,11 +57,9 @@ namespace MineAuth.Launcher{
 
 
             //Create the folder for the native libraries
-            nativeLibrariesFolder = Path.Combine(gameDir, "bin" , GetRandomHash(16).ToLower().Replace("-",""));
+            //TODO : Utiliser le nom du client à la place du numero de version
+            nativeLibrariesFolder = Path.Combine(gameDir, "bin" , Utils.getHash(clientName));
             Directory.CreateDirectory(nativeLibrariesFolder);
-
-
-
 
 
             BuildLibraries(gameDir);
@@ -73,31 +67,34 @@ namespace MineAuth.Launcher{
 
             //Need to build assets before config file
             DownloadAssets(gameDir);           
-            DownloadLogConfFile(gameDir);
-
-            //Debug
-            CreateNewFile(classPath, Path.Combine(gameDir, "classPath.txt"));
-
+            DownloadLogConfigFile(gameDir);
         }
 
-        private static void DownloadLogConfFile(string path)
+  
+
+        private static void DownloadLogConfigFile(string path)
         {
-            //Create log configs folder
-            string savePath = Path.Combine(path, "assets", "log_configs");
-            Directory.CreateDirectory(savePath);
-
-
             JObject? manifest = JObject.Parse(version_manifest);
-            string fileUrl = (string?)manifest["logging"]["client"]["file"]["url"];
 
-            //TODO: Check file size
-            long? exceptedSize = (long?)manifest["logging"]["client"]["file"]["size"];
-            string? fileName = (string?)manifest["logging"]["client"]["file"]["id"];
+            if ((string?)manifest["logging"] != null)
+            {
+                //Create log configs folder
+                string savePath = Path.Combine(path, "assets", "log_configs");
+                Directory.CreateDirectory(savePath);
 
 
-            configurationFilePath = Path.Combine(savePath, fileName);
-            var jsonFile = WebQuery.GetStringAsync(fileUrl);
-            CreateNewFile(jsonFile, configurationFilePath);
+                string fileUrl = (string?)manifest["logging"]["client"]["file"]["url"];
+
+                //TODO: Check file size
+                long? exceptedSize = (long?)manifest["logging"]["client"]["file"]["size"];
+                string? fileName = (string?)manifest["logging"]["client"]["file"]["id"];
+
+
+                configurationFilePath = Path.Combine(savePath, fileName);
+                var jsonFile = WebQuery.GetStringAsync(fileUrl);
+                CreateNewFile(jsonFile, configurationFilePath);
+            }
+           
         }
 
         private static void DownloadClient(string path)
@@ -105,21 +102,20 @@ namespace MineAuth.Launcher{
             JObject? manifest = JObject.Parse(version_manifest);
             string client_url =  (string?)manifest["downloads"]["client"]["url"];
             long? exceptedSize =  (long?)manifest["downloads"]["client"]["size"];
-            string version = (string?)manifest["id"];
 
 
-            string clientPath = Path.Combine( new string[]{path, "versions", version } );
+            string clientPath = Path.Combine( new string[]{path, "versions", clientName } );
 
             Directory.CreateDirectory(clientPath);
 
-            var dlTask = WebQuery.DownloadFile(client_url, clientPath, $"{version}.jar", exceptedSize);
+            var dlTask = WebQuery.DownloadFile(client_url, clientPath, $"{clientName}.jar", exceptedSize);
             dlTask.Wait();
 
-            CreateNewFile(version_manifest, Path.Combine(new string[] { clientPath, $"{version}.json" }));
+            CreateNewFile(version_manifest, Path.Combine(new string[] { clientPath, $"{clientName}.json" }));
 
 
             //Don't add ';' at the end, it's the last element of the classPath
-            classPath += Path.Combine(new string[] { clientPath, $"{version}.jar" });
+            classPath += Path.Combine(new string[] { clientPath, $"{clientName}.jar" });
         }
 
         private static void DownloadAssets(string path)
@@ -156,17 +152,23 @@ namespace MineAuth.Launcher{
                     dlTask.Wait();
 
 
-                    //TODO : Store a copy to ".minecraft/assets/virtual/legacy/"
-                    //in the old format for versions that don't support the new system (1.7 and below)
-                    string assetpath = Path.Combine(new string[] { assetFolderpath, hash, });
+                    //Only needed for version below 1.7
+                    string hashedRssourcePath = Path.Combine(assetFolderpath, hash);
+                    string rawResourceName = ((JProperty)asset).Name.Replace('/','\\');
+                    string resourceName = rawResourceName.Split('\\').Last();
+                    string resourceFolder = rawResourceName.Replace(resourceName, "");
+                    string ressourcePath = Path.Combine(new string[] { gameDir, "resources", resourceFolder });
+                    Directory.CreateDirectory(ressourcePath);
+                    File.Copy(hashedRssourcePath,Path.Combine(ressourcePath, resourceName),true);
 
-                   
+                    
+
 
                 }
             }
             catch (Exception ex)
             {
-                Logs.Add($"Error when downloading {version}.json", MessageType.Error);
+                Logs.Add($"Error when downloading {version}.json, {ex}", MessageType.Error);
 
             }
 
@@ -198,7 +200,7 @@ namespace MineAuth.Launcher{
                             allowDl = true;
 
                             if (rule["os"] != null){
-                                if ((string?)rule["os"]["name"] != platform.ToString())              
+                                if ((string?)rule["os"]["name"] != Utils.GetUserPlatform().ToString())              
                                     allowDl = false;
                             }
 
@@ -228,7 +230,7 @@ namespace MineAuth.Launcher{
             //TODO: Need optimization
             if (library["natives"] != null)
             {
-                string classifier = (string?)library["natives"][platform.ToString()];
+                string classifier = (string?)library["natives"][Utils.GetUserPlatform().ToString()];
 
 
 
@@ -307,48 +309,8 @@ namespace MineAuth.Launcher{
         }
 
 
-        private static async Task<string> GetJsonFile(string path)
-        {
-            if(File.Exists(path))
-            {
-                using (StreamReader sr = File.OpenText(path))
-                {
-                    return await sr.ReadToEndAsync();
-                }
-            }
 
-            return "";
-        }
-
-        private static string GetRandomHash(int length)
-        {
-            return BitConverter.ToString(RandomNumberGenerator.GetBytes(length));
-        }
-
-
-
-        public static Platform GetUserPlatform()
-        {
-            //source => https://stackoverflow.com/questions/10138040/how-to-detect-properly-windows-linux-mac-operating-systems
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.Unix:
-                    // Well, there are chances MacOSX is reported as Unix instead of MacOSX.
-                    // Instead of platform check, we'll do a feature checks (Mac specific root folders)
-                    if (Directory.Exists("/Applications")
-                        & Directory.Exists("/System")
-                        & Directory.Exists("/Users")
-                        & Directory.Exists("/Volumes"))
-                        return Platform.osx;
-                    else
-                        return Platform.linux;
-                case PlatformID.MacOSX:
-                    return Platform.osx;
-
-                default:
-                    return Platform.windows;
-            }
-        }
+   
 
 
     }

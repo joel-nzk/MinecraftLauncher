@@ -21,10 +21,9 @@ namespace MineAuth.Http
             {
                 return client.GetStringAsync(url).Result;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return "";
-
             }
         }
 
@@ -45,8 +44,7 @@ namespace MineAuth.Http
 
                             long filesize = new FileInfo(path).Length;
 
-
-                            if (!CheckFileintegrity(filesize, exceptedSize))
+                            if (!CheckFileSize(filesize, exceptedSize))
                             {
                                 Logs.Add($"The file '{fileName}' ({filesize} bytes) doesn't match the excepted size ({exceptedSize} bytes), it may be corrupted", MessageType.Error);
                             }
@@ -54,11 +52,7 @@ namespace MineAuth.Http
                             {
                                 Logs.Add($"'{fileName}' have been succefully downloaded to '{path}'", MessageType.Success);
                             }
-
-
                         }
-
-
                     }
                 }
                
@@ -67,17 +61,9 @@ namespace MineAuth.Http
             {
                 Logs.Add(e.ToString(), MessageType.Error);
             }
-
-
-
-
-
-
-
-
         }
 
-        private static bool CheckFileintegrity(long filesize, long? exceptedSize)
+        private static bool CheckFileSize(long filesize, long? exceptedSize)
         {
             if(filesize != exceptedSize)
                 return false;

@@ -12,12 +12,13 @@ namespace MineAuth
         Error,
         Warning,
         Normal,
+        Information
     }
 
     public static class Logs
     {
  
-        public static void Add(string message, MessageType type = MessageType.Normal)
+        public static void Add(string message, MessageType type = MessageType.Normal, bool timeCode = true)
         {
             switch (type)
             {
@@ -30,12 +31,22 @@ namespace MineAuth
                 case MessageType.Warning:
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
                     break;
+                case MessageType.Information:
+                    Console.ForegroundColor = ConsoleColor.Magenta;
+                    break;
                 default:
                     Console.ForegroundColor = ConsoleColor.Gray;
                     break;
             }
 
-            Console.WriteLine(message);
+            DateTime time = DateTime.Now;
+
+            if(timeCode)
+                Console.WriteLine($"[{time:HH:mm:ss}] {message}");
+            else
+                Console.WriteLine(message);
+
+
             Console.ForegroundColor = ConsoleColor.Gray;
         }
     }
