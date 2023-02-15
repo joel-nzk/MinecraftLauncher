@@ -13,10 +13,7 @@ namespace MineAuthNET
             //LauncherBuilder.CreateLauncherFolders(@"C:\Users\jojok\AppData\Roaming",".launcher");
 
 
-            GameClient client = new GameClient();
-            if (client.CheckIfJavaInstalled())
-                Console.WriteLine("dd");
-
+            GameClient client = new GameClient();         
             client.StartAsync("zendenn", "1.0", 550, 310);
 
 

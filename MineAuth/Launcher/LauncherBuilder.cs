@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -46,11 +47,7 @@ namespace MineAuth.Launcher{
         public static void CreateLauncherFolders(string path, string name)
         {
             //TODO: SAUVEGARDER CE FICHIER
-            version_manifest = MinecraftManifest.GetVersionManifest(gameVersion);
-
-            version_manifest = version_manifest.Replace("${arch}", OsArchitecture);
-
-
+            version_manifest = MinecraftManifest.GetVersionManifest(gameVersion).Replace("${arch}", OsArchitecture);
             gameDir = Path.Combine(path, name);
 
 
@@ -64,7 +61,7 @@ namespace MineAuth.Launcher{
 
 
             //Create the folder for the native libraries
-            nativeLibrariesFolder = Path.Combine(gameDir, "bin");
+            nativeLibrariesFolder = Path.Combine(gameDir, "bin" , GetRandomHash(16).ToLower().Replace("-",""));
             Directory.CreateDirectory(nativeLibrariesFolder);
 
 
@@ -75,8 +72,8 @@ namespace MineAuth.Launcher{
             DownloadClient(gameDir);
 
             //Need to build assets before config file
-            //DownloadAssets(gameDir);           
-            //DownloadLogConfFile(gameDir);
+            DownloadAssets(gameDir);           
+            DownloadLogConfFile(gameDir);
 
             //Debug
             CreateNewFile(classPath, Path.Combine(gameDir, "classPath.txt"));
@@ -189,9 +186,6 @@ namespace MineAuth.Launcher{
 
             foreach (var lib in librairies)
             {
-                string name = (string?)lib["name"];
-
-    
 
                 if (lib["rules"] != null)
                 {
@@ -226,11 +220,10 @@ namespace MineAuth.Launcher{
 
         private static void GetLibraryData(JToken? library, string parentFolder)
         {
-            string? lib_raw_path = "";
-            string? lib_dl_url = "";
-            long? exceptedSize = 0;
-
             bool isNative = false;
+            long? exceptedSize;
+            string? lib_dl_url;
+            string? lib_raw_path;
 
             //TODO: Need optimization
             if (library["natives"] != null)
@@ -238,7 +231,7 @@ namespace MineAuth.Launcher{
                 string classifier = (string?)library["natives"][platform.ToString()];
 
 
-            
+
 
                 lib_raw_path = (string?)library["downloads"]["classifiers"][classifier]["path"];
                 lib_dl_url = (string?)library["downloads"]["classifiers"][classifier]["url"];
@@ -327,8 +320,9 @@ namespace MineAuth.Launcher{
             return "";
         }
 
-        private static void GetZipFileContent(string path)
+        private static string GetRandomHash(int length)
         {
+            return BitConverter.ToString(RandomNumberGenerator.GetBytes(length));
         }
 
 
