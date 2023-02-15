@@ -28,14 +28,13 @@ namespace MineAuth.Http
             }
         }
 
-        public static  async void DownloadFile(string url, string savePath, string fileName, long? exceptedSize = 0)
+        public static  async Task DownloadFile(string url, string savePath, string fileName, long? exceptedSize = 0)
         {
 
             string path = Path.Combine(savePath, fileName);
 
             try
             {
-                Thread.Sleep(100);
                 using (var response = await client.GetAsync(url))
                 {
                     using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
@@ -66,13 +65,13 @@ namespace MineAuth.Http
             }
             catch(Exception e)
             {
-                Console.WriteLine(e);
+                Logs.Add(e.ToString(), MessageType.Error);
             }
-           
-                
-        
 
-     
+
+
+
+
 
 
 

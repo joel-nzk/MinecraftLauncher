@@ -7,6 +7,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace MineAuth.Launcher{
 
@@ -20,19 +21,24 @@ namespace MineAuth.Launcher{
     public static class LauncherBuilder
     {
         private static Platform platform = GetUserPlatform();
-        public static string json_manifest = "";
+        public static string version_manifest = "";
 
         public static string classPath = "";
         public static string nativeLibrariesFolder = "";
+        public static string gameDir = "";
+        public static string assetsPath = "";
+        public static string gameVersion = "1.8.1";
+        public static string assetIndexes = "";
+        public static string configurationFilePath = "";
 
-        public static string osArchitecture
+        public static string OsArchitecture
         {
             get
             {
                 if (Environment.Is64BitProcess)
-                    return "x64";
+                    return "64";
                 else
-                    return "x86";
+                    return "32";
             }
         }
         
@@ -40,56 +46,95 @@ namespace MineAuth.Launcher{
         public static void CreateLauncherFolders(string path, string name)
         {
             //TODO: SAUVEGARDER CE FICHIER
-            json_manifest = MinecraftManifest.GetVersionManifest("1.8.1");
-            string _path = Path.Combine(path, name);
+            version_manifest = MinecraftManifest.GetVersionManifest(gameVersion);
+
+            version_manifest = version_manifest.Replace("${arch}", OsArchitecture);
 
 
-            if (Directory.Exists(_path))
+            gameDir = Path.Combine(path, name);
+
+
+            if (Directory.Exists(gameDir))
             {
-                Logs.Add($"The folder {_path} already exist", MessageType.Warning);
+                Logs.Add($"The folder {gameDir} already exist", MessageType.Warning);
             }
  
             //Create the equivalent of the .minecraft
-            Directory.CreateDirectory(_path);
+            Directory.CreateDirectory(gameDir);
 
 
             //Create the folder for the native libraries
-            nativeLibrariesFolder = Path.Combine(_path, "bin");
+            nativeLibrariesFolder = Path.Combine(gameDir, "bin");
             Directory.CreateDirectory(nativeLibrariesFolder);
 
 
-            //DownloadClient(_path);
-            //DownloadAssets(_path);
-            BuildLibraries(_path);
 
+
+
+            BuildLibraries(gameDir);
+            DownloadClient(gameDir);
+
+            //Need to build assets before config file
+            //DownloadAssets(gameDir);           
+            //DownloadLogConfFile(gameDir);
+
+            //Debug
+            CreateNewFile(classPath, Path.Combine(gameDir, "classPath.txt"));
+
+        }
+
+        private static void DownloadLogConfFile(string path)
+        {
+            //Create log configs folder
+            string savePath = Path.Combine(path, "assets", "log_configs");
+            Directory.CreateDirectory(savePath);
+
+
+            JObject? manifest = JObject.Parse(version_manifest);
+            string fileUrl = (string?)manifest["logging"]["client"]["file"]["url"];
+
+            //TODO: Check file size
+            long? exceptedSize = (long?)manifest["logging"]["client"]["file"]["size"];
+            string? fileName = (string?)manifest["logging"]["client"]["file"]["id"];
+
+
+            configurationFilePath = Path.Combine(savePath, fileName);
+            var jsonFile = WebQuery.GetStringAsync(fileUrl);
+            CreateNewFile(jsonFile, configurationFilePath);
         }
 
         private static void DownloadClient(string path)
         {
-            JObject? manifest = JObject.Parse(json_manifest);
+            JObject? manifest = JObject.Parse(version_manifest);
             string client_url =  (string?)manifest["downloads"]["client"]["url"];
             long? exceptedSize =  (long?)manifest["downloads"]["client"]["size"];
             string version = (string?)manifest["id"];
 
 
             string clientPath = Path.Combine( new string[]{path, "versions", version } );
+
             Directory.CreateDirectory(clientPath);
 
+            var dlTask = WebQuery.DownloadFile(client_url, clientPath, $"{version}.jar", exceptedSize);
+            dlTask.Wait();
 
-            WebQuery.DownloadFile(client_url, clientPath, $"{version}.jar", exceptedSize);
-            classPath += Path.Combine(new string[] { clientPath, $"{version}.jar" }) + ";";
+            CreateNewFile(version_manifest, Path.Combine(new string[] { clientPath, $"{version}.json" }));
 
+
+            //Don't add ';' at the end, it's the last element of the classPath
+            classPath += Path.Combine(new string[] { clientPath, $"{version}.jar" });
         }
 
         private static void DownloadAssets(string path)
         {
-            JObject? manifest = JObject.Parse(json_manifest);
+            JObject? manifest = JObject.Parse(version_manifest);
             string assetsUrl = (string?)manifest["assetIndex"]["url"];
             long? exceptedSize = (long?)manifest["assetIndex"]["size"];
             string version = (string?)manifest["assetIndex"]["id"];
 
 
-            string assetsPath = Path.Combine(new string[] { path, "assets", "indexes" });
+            assetIndexes = version;
+            assetsPath = Path.Combine(new string[] { path, "assets", "indexes" });
             Directory.CreateDirectory(assetsPath);
             
 
@@ -97,6 +142,9 @@ namespace MineAuth.Launcher{
             {
                 //TODO: SAUVEGARDER CE FICHIER
                 var jsonFile = WebQuery.GetStringAsync(assetsUrl);
+                CreateNewFile(jsonFile, Path.Combine(new string[] { assetsPath, $"{version}.json" }));
+
+
                 JObject? assetsList = JObject.Parse(jsonFile);
 
                 foreach (JToken asset in assetsList["objects"])
@@ -107,7 +155,8 @@ namespace MineAuth.Launcher{
 
                     string assetFolderpath = Path.Combine(new string[] { path, "assets", "objects", hash.Substring(0, 2) });
                     Directory.CreateDirectory(assetFolderpath);
-                    WebQuery.DownloadFile(assetUrl, assetFolderpath, hash, exceptedSize);
+                    var dlTask = WebQuery.DownloadFile(assetUrl, assetFolderpath, hash, exceptedSize);
+                    dlTask.Wait();
 
 
                     //TODO : Store a copy to ".minecraft/assets/virtual/legacy/"
@@ -130,7 +179,7 @@ namespace MineAuth.Launcher{
         private static void BuildLibraries(string path)
         {
 
-            JObject? manifest = JObject.Parse(json_manifest);
+            JObject? manifest = JObject.Parse(version_manifest);
 
             string libraries_folder = Path.Combine(path, "libraries");
 
@@ -140,24 +189,33 @@ namespace MineAuth.Launcher{
 
             foreach (var lib in librairies)
             {
+                string name = (string?)lib["name"];
+
+    
+
                 if (lib["rules"] != null)
                 {
-                    if(lib["rules"][0]["os"] != null)
+                    bool allowDl = false;
+
+                    foreach (JToken? rule in (JArray)lib["rules"])
                     {
-                        if ((string?)lib["rules"][0]["os"]["name"] == platform.ToString())
+                        if ((string?)rule["action"] == "allow")
                         {
-                            GetLibraryData(lib, libraries_folder);
-                        }
-                    }
-                    else if (lib["rules"][1]["os"] != null)
-                    {
-                        if ((string?)lib["rules"][1]["os"]["name"] == platform.ToString())
-                        {
-                            GetLibraryData(lib, libraries_folder);
+                            allowDl = true;
+
+                            if (rule["os"] != null){
+                                if ((string?)rule["os"]["name"] != platform.ToString())              
+                                    allowDl = false;
+                            }
+
                         }
                     }
 
-                   
+                    if(allowDl)
+                        GetLibraryData(lib, libraries_folder);
+
+  
+
                 }
                 else
                 {
@@ -180,11 +238,7 @@ namespace MineAuth.Launcher{
                 string classifier = (string?)library["natives"][platform.ToString()];
 
 
-                if (classifier.Contains("${arch}"))
-                {
-                    string arch = osArchitecture.Remove(0, 1);
-                    classifier = classifier.Replace("${arch}", arch);
-                }
+            
 
                 lib_raw_path = (string?)library["downloads"]["classifiers"][classifier]["path"];
                 lib_dl_url = (string?)library["downloads"]["classifiers"][classifier]["url"];
@@ -202,14 +256,21 @@ namespace MineAuth.Launcher{
                 exceptedSize = (long?)library["downloads"]["artifact"]["size"];
 
 
-
-
             }
 
             DownloadLibrary(parentFolder, lib_raw_path, lib_dl_url, exceptedSize, isNative);
 
 
 
+        }
+
+        private static async void CreateNewFile(string srcData, string destPath)
+        {
+            using(FileStream fs = File.Create(destPath))
+            {
+                byte[] data = new UTF8Encoding(true).GetBytes(srcData);
+                await fs.WriteAsync(data);
+            }
         }
 
 
@@ -224,22 +285,29 @@ namespace MineAuth.Launcher{
 
             string dl_folder = Path.Combine(parent_folder, sb.ToString());    
             Directory.CreateDirectory(dl_folder);
-            WebQuery.DownloadFile(lib_dl_url, dl_folder,fileName, exceptedSize);
+            var dlTask = WebQuery.DownloadFile(lib_dl_url, dl_folder,fileName, exceptedSize);
+            dlTask.Wait();
 
             string lib_Path = Path.Combine(new string[] { dl_folder, fileName });
-            classPath += lib_Path + ";";
+
 
             if (isNative)
             {
                 try
                 {
-                    ZipFile.ExtractToDirectory(lib_Path, nativeLibrariesFolder);
+                    ZipFile.ExtractToDirectory(lib_Path, nativeLibrariesFolder,true);
 
                 }catch(Exception ex)
                 {
-
+                    Logs.Add(ex.ToString(), MessageType.Error);
                 }
             }
+            else
+            {
+                classPath += lib_Path + ";";
+
+            }
+
 
 
 
