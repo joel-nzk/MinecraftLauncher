@@ -2,6 +2,7 @@
 using MineAuth.Launcher;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using static MineAuth.GameClient;
 
 namespace MineAuthNET
 {
@@ -10,13 +11,23 @@ namespace MineAuthNET
         static void Main(string[] args)
         {
 
-            //LauncherBuilder.CreateLauncherFolders(@"C:\Users\jojok\AppData\Roaming",".minecreative","1.4.7","mc147");
+            string gameDir = @"C:\Users\jojok\AppData\Roaming";
+            string gameFolderName = ".minespace";
+
+            LauncherBuilder.CreateNewLauncher(gameDir, gameFolderName, "1.12.2", "minespace");
+
 
             GameClient client = new GameClient();
-
+            string path = Path.Combine(gameDir, gameFolderName);
             int allocatedMemory = 2048;
+            string email = "email_user@gmail.com";
+            string password = "dummy_password";
             string launcherArgs = $"-Xmx{allocatedMemory}M -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M ";
-            client.Start("zenden300", "mc147", "1.4.7", launcherArgs);
+            client.Start("user3", "minespace", "1.12.2", path, AccountType.Offline, email, password, launcherArgs);
+
+
+
+
         }
 
 

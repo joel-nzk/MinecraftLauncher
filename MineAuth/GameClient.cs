@@ -21,7 +21,7 @@ namespace MineAuth
         }
 
 
-        public void Start(string username, string clientName, string gameVersion, string addArgs = "")
+        public void Start(string username, string clientName, string gameVersion,string gameDir,AccountType accountType, string email = "", string password = "", string addArgs = "")
         {
             if(!CheckIfJavaInstalled())
             {
@@ -30,17 +30,24 @@ namespace MineAuth
             }
 
 
-            string gameDirPath = @"C:\Users\jojok\AppData\Roaming\.minecreative";
-            var versionManifest =  GetVersionManifestAsync(gameDirPath, clientName);
+            if(accountType == AccountType.Online)
+            {
+                Logs.Add($"No account found for the email {email}", MessageType.Information);
+                Logs.Add($"Launching in Offline mode", MessageType.Information);
+            }
 
 
-            string clientPath = GetClientPath(gameDirPath, clientName);
-            string nativeLibrariesFolder = GetNativelibrariesPath(gameDirPath, clientName);
-            string assetsPath = @"C:\Users\jojok\AppData\Roaming\.minecreative\assets\virtual";//GetAssetsPath(gameDirPath);
+
+            var versionManifest =  GetVersionManifestAsync(gameDir, clientName);
+
+
+            string clientPath = GetClientPath(gameDir, clientName);
+            string nativeLibrariesFolder = GetNativelibrariesPath(gameDir, clientName);
+            string assetsPath = GetAssetsPath(gameDir, gameVersion);
             string configurationFilePath = "";
 
-            if ((string?)versionManifest["logging"] != null)
-                configurationFilePath = GetConfigurationFilePath(gameDirPath, (string?)versionManifest["logging"]["client"]["file"]["id"]);
+            if (versionManifest["logging"] != null)
+                configurationFilePath = GetConfigurationFilePath(gameDir, (string?)versionManifest["logging"]["client"]["file"]["id"]);
 
 
             string launcher_name = "minecraft-launcher";
@@ -54,7 +61,7 @@ namespace MineAuth
 
 
             string assetIndexes = (string?)versionManifest["assetIndex"]["id"];      
-            string classPath = GetClassPath(versionManifest, gameDirPath) + clientPath;
+            string classPath = GetClassPath(versionManifest, gameDir) + clientPath;
 
 
             ProcessStartInfo mc_game_process = new ProcessStartInfo()
@@ -82,26 +89,35 @@ namespace MineAuth
 
             arguments +=  $"{addArgs} ";
             mc_game_process.Arguments += $"-Djava.library.path={nativeLibrariesFolder} -Dminecraft.launcher.brand={launcher_name} -Dminecraft.launcher.version={launcher_version} -Dminecraft.client.jar={clientPath} -cp {classPath} ";
-            //mc_game_process.Arguments += $"-Dlog4j.configurationFile={configurationFilePath} ";
+
+            //This parameter doesn't exist before 1.7
+
+            if (minecraftVersion(gameVersion) <= 172)
+            {
+                mc_game_process.Arguments += $"-Dlog4j.configurationFile={configurationFilePath} ";
+            }
+
 
             //Main Class
-            //TODO : use net.minecraft.launchwrapper.Launch until 1.5.2, except for 13w16b who uses net.minecraft.client.main.Main
-            //mc_game_process.Arguments += "net.minecraft.client.main.Main ";
-            mc_game_process.Arguments += "net.minecraft.launchwrapper.Launch ";
+            if (minecraftVersion(gameVersion) > 152)
+            {
+                //TODO : use net.minecraft.launchwrapper.Launch until 1.5.2, except for 13w16b who uses net.minecraft.client.main.Main
+                mc_game_process.Arguments += "net.minecraft.client.main.Main ";
+            }
+            else
+                mc_game_process.Arguments += "net.minecraft.launchwrapper.Launch ";
+
 
             //Game Arguments
-            mc_game_process.Arguments += $"--username {username} --version {gameVersion} --gameDir {gameDirPath} --assetsDir {assetsPath} --assetIndex {assetIndexes} --accessToken {accessToken} --uuid {uuid} --userProperties {"{}"} --userType {userType}";
+            mc_game_process.Arguments += $"--username {username} --version {gameVersion} --gameDir {gameDir} --assetsDir {assetsPath} --assetIndex {assetIndexes} --accessToken {accessToken} --uuid {uuid} --userProperties {"{}"} --userType {userType}";
 
             //Args for below 1.7
-            //mc_game_process.Arguments += $@"{username} {accessToken} --gameDir {gameDirPath} --assetsDir {assetsPath} --tweakClass net.minecraft.launchwrapper.AlphaVanillaTweaker";
-
-
-            Console.WriteLine(mc_game_process.Arguments);
+            if (minecraftVersion(gameVersion) <= 170)
+                mc_game_process.Arguments += "--tweakClass net.minecraft.launchwrapper.AlphaVanillaTweaker";
 
 
             var process = new Process();
             process.StartInfo = mc_game_process;
-
 
             process.OutputDataReceived += new DataReceivedEventHandler((s, e) =>
             {
@@ -120,16 +136,13 @@ namespace MineAuth
             });
 
             
-
-
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             process.WaitForExit();
         }
 
-
-        public  JObject GetVersionManifestAsync(string gameDir, string clientName)
+        public JObject GetVersionManifestAsync(string gameDir, string clientName)
         {
             string path = Path.Combine(new string[] { gameDir, "versions", clientName, $"{clientName}.json" });
             var file = Utils.GetTextFileContent(path).Result;
@@ -139,8 +152,11 @@ namespace MineAuth
         {
             return Path.Combine(new string[] { gameDir , "versions", clientName , $"{clientName}.jar" });
         }
-        public string GetAssetsPath(string gameDir)
-        {         
+        public string GetAssetsPath(string gameDir,string gameVersion)
+        {
+            if(minecraftVersion(gameVersion) <= 172)
+                return Path.Combine(new string[] { gameDir, "assets", "virtual" });
+
             return Path.Combine(gameDir, "assets");
         }
         public string GetClassPath(JObject versionManifest,string gameDir)
@@ -233,6 +249,10 @@ namespace MineAuth
 
 
             return false;
+        }
+        public int minecraftVersion(string version)
+        {
+            return  int.Parse(string.Concat(version.Split('.')));
         }
     }
 

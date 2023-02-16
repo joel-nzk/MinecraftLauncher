@@ -24,6 +24,7 @@ namespace MineAuth.Launcher{
         private static string gameDir = "";
         private static string clientName = "";
         private static string assetsPath = "";
+        private static string gameVersion = "";
         private static string assetIndexes = "";
         private static string configurationFilePath = "";
 
@@ -39,19 +40,27 @@ namespace MineAuth.Launcher{
         }
 
 
-        public static void CreateLauncherFolders(string path, string name, string gameVersion, string _clientName)
+        public static void CreateNewLauncher(string path, string name, string _gameVersion, string _clientName)
         {
-            //TODO: SAUVEGARDER CE FICHIER
-            version_manifest = MinecraftManifest.GetVersionManifest(gameVersion).Replace("${arch}", OsArchitecture);
-            gameDir = Path.Combine(path, name);
-            clientName = _clientName;
+            Task task = Task.Run(() => CreateLauncherFolders(path, name, _gameVersion, _clientName));
+            task.Wait();
+        }
 
+
+        private static void CreateLauncherFolders(string path, string name, string _gameVersion, string _clientName)
+        {
+            gameDir = Path.Combine(path, name);
 
             if (Directory.Exists(gameDir))
             {
                 Logs.Add($"The folder {gameDir} already exist", MessageType.Warning);
+                return;
             }
- 
+
+            gameVersion = _gameVersion;
+            version_manifest = MinecraftManifest.GetVersionManifest(_gameVersion).Replace("${arch}", OsArchitecture);
+            clientName = _clientName;
+       
             //Create the equivalent of the .minecraft
             Directory.CreateDirectory(gameDir);
 
@@ -68,15 +77,18 @@ namespace MineAuth.Launcher{
             //Need to build assets before config file
             DownloadAssets(gameDir);           
             DownloadLogConfigFile(gameDir);
+
+      
+
         }
 
-  
+
 
         private static void DownloadLogConfigFile(string path)
         {
             JObject? manifest = JObject.Parse(version_manifest);
 
-            if ((string?)manifest["logging"] != null)
+            if (manifest["logging"] != null)
             {
                 //Create log configs folder
                 string savePath = Path.Combine(path, "assets", "log_configs");
@@ -153,13 +165,17 @@ namespace MineAuth.Launcher{
 
 
                     //Only needed for version below 1.7
-                    string hashedRssourcePath = Path.Combine(assetFolderpath, hash);
-                    string rawResourceName = ((JProperty)asset).Name.Replace('/','\\');
-                    string resourceName = rawResourceName.Split('\\').Last();
-                    string resourceFolder = rawResourceName.Replace(resourceName, "");
-                    string ressourcePath = Path.Combine(new string[] { gameDir, "resources", resourceFolder });
-                    Directory.CreateDirectory(ressourcePath);
-                    File.Copy(hashedRssourcePath,Path.Combine(ressourcePath, resourceName),true);
+                    if (minecraftVersion(gameVersion) <= 170)
+                    {
+                        string hashedRssourcePath = Path.Combine(assetFolderpath, hash);
+                        string rawResourceName = ((JProperty)asset).Name.Replace('/', '\\');
+                        string resourceName = rawResourceName.Split('\\').Last();
+                        string resourceFolder = rawResourceName.Replace(resourceName, "");
+                        string ressourcePath = Path.Combine(new string[] { gameDir, "resources", resourceFolder });
+                        Directory.CreateDirectory(ressourcePath);
+                        File.Copy(hashedRssourcePath, Path.Combine(ressourcePath, resourceName), true);
+                    }
+                       
 
                     
 
@@ -308,9 +324,15 @@ namespace MineAuth.Launcher{
 
         }
 
+        private static int minecraftVersion(string version)
+        {
+            return int.Parse(string.Concat(version.Split('.')));
+        }
 
 
-   
+
+
+
 
 
     }
