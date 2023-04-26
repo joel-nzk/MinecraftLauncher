@@ -66,7 +66,7 @@ namespace MineAuth.Launcher{
 
 
             //Create the folder for the native libraries
-            //TODO : Utiliser le nom du client à la place du numero de version
+            //TODO : use client name instead of version number
             nativeLibrariesFolder = Path.Combine(gameDir, "bin" , Utils.getHash(clientName));
             Directory.CreateDirectory(nativeLibrariesFolder);
 
@@ -145,7 +145,7 @@ namespace MineAuth.Launcher{
 
             try
             {
-                //TODO: SAUVEGARDER CE FICHIER
+                //TODO: Save this file
                 var jsonFile = WebQuery.GetStringAsync(assetsUrl);
                 CreateNewFile(jsonFile, Path.Combine(new string[] { assetsPath, $"{version}.json" }));
 
