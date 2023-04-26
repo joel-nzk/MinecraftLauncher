@@ -1,4 +1,5 @@
 ﻿using MineAuth.Http;
+using MineAuth.Java;
 using MineAuth.Launcher;
 using Newtonsoft.Json.Linq;
 using System;
@@ -23,10 +24,10 @@ namespace MineAuth
 
         public void Start(string username, string clientName, string gameVersion,string gameDir,AccountType accountType, string email = "", string password = "", string addArgs = "")
         {
-            if(!CheckIfJavaInstalled())
+            if(!JavaUtils.IsJavaInstalled())
             {
                 Logs.Add("Java not installed", MessageType.Information);
-                InstallJava("to_do");
+                JavaUtils.InstallJava("");
             }
 
 
@@ -66,7 +67,7 @@ namespace MineAuth
 
             ProcessStartInfo mc_game_process = new ProcessStartInfo()
             {
-                FileName = GetJavaPath(),
+                FileName = JavaUtils.GetJavaPath(),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -90,18 +91,20 @@ namespace MineAuth
             arguments +=  $"{addArgs} ";
             mc_game_process.Arguments += $"-Djava.library.path={nativeLibrariesFolder} -Dminecraft.launcher.brand={launcher_name} -Dminecraft.launcher.version={launcher_version} -Dminecraft.client.jar={clientPath} -cp {classPath} ";
 
-            //This parameter doesn't exist before 1.7
-
-            if (minecraftVersion(gameVersion) <= 172)
+            //TODO: Verify from which version this parameter apply
+            //TODO: Improve the verification system
+            if (MinecraftVersion(gameVersion) <= 172)
             {
                 mc_game_process.Arguments += $"-Dlog4j.configurationFile={configurationFilePath} ";
             }
 
 
             //Main Class
-            if (minecraftVersion(gameVersion) > 152)
+            //TODO: use net.minecraft.launchwrapper.Launch until 1.5.2, except for 13w16b who uses net.minecraft.client.main.Main
+            //TODO: Improve the verification system
+
+            if (MinecraftVersion(gameVersion) > 152)
             {
-                //TODO : use net.minecraft.launchwrapper.Launch until 1.5.2, except for 13w16b who uses net.minecraft.client.main.Main
                 mc_game_process.Arguments += "net.minecraft.client.main.Main ";
             }
             else
@@ -112,7 +115,7 @@ namespace MineAuth
             mc_game_process.Arguments += $"--username {username} --version {gameVersion} --gameDir {gameDir} --assetsDir {assetsPath} --assetIndex {assetIndexes} --accessToken {accessToken} --uuid {uuid} --userProperties {"{}"} --userType {userType}";
 
             //Args for below 1.7
-            if (minecraftVersion(gameVersion) <= 170)
+            if (MinecraftVersion(gameVersion) <= 170)
                 mc_game_process.Arguments += "--tweakClass net.minecraft.launchwrapper.AlphaVanillaTweaker";
 
 
@@ -154,7 +157,7 @@ namespace MineAuth
         }
         public string GetAssetsPath(string gameDir,string gameVersion)
         {
-            if(minecraftVersion(gameVersion) <= 172)
+            if(MinecraftVersion(gameVersion) <= 172)
                 return Path.Combine(new string[] { gameDir, "assets", "virtual" });
 
             return Path.Combine(gameDir, "assets");
@@ -215,42 +218,10 @@ namespace MineAuth
         {
             return Path.Combine(new string[] { gameDir, "assets", "log_configs", configFileName });
         }
-        public string GetJavaPath()
-        {
-            //TODO: Utiliser la commande 'where' à la place de mettre en dur
-            return @"C:\Program Files\Java\jre1.8.0_351\bin\java.exe";
-        }
-        public void InstallJava(string requiredVersion)
-        {
+   
+    
 
-        }
-        public bool CheckIfJavaInstalled()
-        {
-            //TODO: Faire la même pour Linux et OSX
-            try
-            {
-                Process process = new Process();
-                process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.Arguments = "/c \"" + "java -version " + "\"";
-
-                process.Start();
-                process.WaitForExit();
-
-                return  process.ExitCode == 0;
-            }
-            catch
-            {
-            }
-
-
-            return false;
-        }
-        public int minecraftVersion(string version)
+        public static int MinecraftVersion(string version)
         {
             return  int.Parse(string.Concat(version.Split('.')));
         }
